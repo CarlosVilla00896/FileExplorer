@@ -18,12 +18,13 @@ LPCWSTR temporal_path;//se usa para las funciones de mover y copiar
 LPCWSTR folder_path;// used for copy folder
 TCHAR file_name[100];//used for the name of the file in movefile()
 int g_nBird, g_nTree;
+LPCWSTR global_currentPath; //current path 
 
 bool createMainWindow(HINSTANCE, int, WNDCLASS);
 void createTreeView(int x, int y, int height, int width, HWND hWnd);
 void createListView(HWND hWnd);
 HIMAGELIST AddIconsToImageList(HINSTANCE hinst);
-void loadOrExecSelected(HWND global_listViewHandle);
+void openSelectedItem(HWND global_listViewHandle);
 LPWSTR getDate(FILETIME ftLastWrite);						//obtiene la fecha de ultima modificacion
 LPCWSTR getPathForListView(HWND m_hListView, int iItem);
 LPCWSTR getPathForTreeView(HTREEITEM hItem);
@@ -34,6 +35,8 @@ LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK DialogProc(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lParam);
 void PathtoFile(LPCWSTR path, TCHAR*);
 void loadDirItemToLisview(HWND hWnd, HWND global_listViewHandle, LPCWSTR path);
+void reloadListView(); //reload list view 
+void createButton(HWND hWnd);
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -109,7 +112,7 @@ bool createMainWindow(HINSTANCE hInstance, int nCmdShow, WNDCLASS wc)
 	return true;
 }
 
-void loadMyComputerToTreeView(HWND global_treeViewHandle, SystemDrives *drive)
+void loadDrives(HWND global_treeViewHandle, SystemDrives *drive)
 {
 	TV_INSERTSTRUCT tvInsert;
 
@@ -118,8 +121,8 @@ void loadMyComputerToTreeView(HWND global_treeViewHandle, SystemDrives *drive)
 	tvInsert.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
 	//tvInsert.item.iImage = IDI_FILE_EXPLORER;
 	//tvInsert.item.iSelectedImage = IDI_FILE_EXPLORER;
-	tvInsert.item.pszText = L"My Computer";
-	tvInsert.item.lParam = (LPARAM)_T("My Computer");
+	tvInsert.item.pszText = L"This PC";
+	tvInsert.item.lParam = (LPARAM)_T("This PC");
 	HTREEITEM hMyComputer = TreeView_InsertItem(global_treeViewHandle, &tvInsert);
 
 	for (int i = 0; i < drive->_numberOfDrive; i++)
@@ -170,7 +173,6 @@ void createTreeView(int x, int y, int height, int width, HWND hWnd)
 {
 
 	global_treeViewHandle = CreateWindowEx(0, WC_TREEVIEW, L"TREE VIEW", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_SIZEBOX | WS_VSCROLL | WS_TABSTOP | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS, x, y, width, height, hWnd, (HMENU)IDM_TREE_VIEW, hInst, nullptr);
-
 }
 
 void createListView(HWND hWnd)
@@ -213,6 +215,21 @@ void createListView(HWND hWnd)
 
 }
 
+void createButton(HWND hWnd) {
+	HWND hwndButton = CreateWindow(
+		L"BUTTON",  // Predefined class; Unicode assumed 
+		L"OK",      // Button text 
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles 
+		10,         // x position 
+		10,         // y position 
+		40,        // Button width
+		40,        // Button height
+		hWnd,     // Parent window
+		NULL,       // No menu.
+		(HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+		NULL);      // Pointer not needed.
+}
+
 BOOL CALLBACK DialogProc(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lParam) {
 	switch (iMessage) {
 	case WM_COMMAND:
@@ -235,7 +252,6 @@ BOOL CALLBACK DialogProc(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lParam)
 							CREATE_NEW,
 							FILE_ATTRIBUTE_NORMAL,
 							NULL);
-						CloseHandle(hfile);
 					}
 					break;
 				case 1:
@@ -311,7 +327,6 @@ BOOL CALLBACK DialogProcLink(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lPa
 				break;
 			case 3:
 				CreateSymbolicLink(fullPathOutput, fullPathOrigin, 1);//1 for symlink to directories
-				break;
 			case 4:
 			{
 				BOOL si = CreateHardLink(fullPathOutput, fullPathOrigin, NULL);
@@ -357,12 +372,12 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		InitCommonControlsEx(&icex);
 
 		GetClientRect(hWnd, &rectangleClient);
-
+		//createButton(hWnd);
 		createTreeView(0, 0, 530, 200, hWnd);
 		createListView(hWnd);
 
 		//loadMyComputerToListView(global_listViewHandle, drive);
-		loadMyComputerToTreeView(global_treeViewHandle, drive);
+		loadDrives(global_treeViewHandle, drive);
 		SetFocus(global_treeViewHandle);
 
 		break;
@@ -379,26 +394,32 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		case IDM_CREATEFILE:
 			create_a = 0;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DialogProc);
+			reloadListView();
 			break;
 		case IDM_CREATEDIR:
 			create_a = 1;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DialogProc);
+			reloadListView();
 			break;
 		case IDM_CREATELINKFILE:
 			create_a = 2;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMLINK), hWnd, DialogProcLink);
+			reloadListView();
 			break;
 		case IDM_CREATELINKDIR:
 			create_a = 3;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMLINK), hWnd, DialogProcLink);
+			reloadListView();
 			break;
 		case IDM_CREATEHARD:
 			create_a = 4;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMLINK), hWnd, DialogProcLink);
+			reloadListView();
 			break;
 		case IDM_RENAME:
 			create_a = 5;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DialogProc);
+			reloadListView();
 			break;
 		case IDM_COPY:
 			{
@@ -408,10 +429,10 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 				temporal_path = getPathForListView(global_listViewHandle, iPos);
 
 				LPCWSTR filePath = getPathForListView(global_listViewHandle, ListView_GetSelectionMark(global_listViewHandle));
-				WIN32_FIND_DATA fd;
+				WIN32_FIND_DATA file_data;
 
-				GetFileAttributesEx(filePath, GetFileExInfoStandard, &fd);
-				if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)//if is dir
+				GetFileAttributesEx(filePath, GetFileExInfoStandard, &file_data);
+				if (file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)//if is dir
 				{
 					create_a = 7;
 					folder_path = getPathForListView(global_listViewHandle, iPos);
@@ -425,6 +446,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		case IDM_COPYHERE:
 			{
 				DialogBox(hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DialogProc);
+				reloadListView();
 			}
 			break;
 		case IDM_MOVE:
@@ -440,11 +462,10 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			{
 				WCHAR absPath[100];
 				PathCombineW(absPath, currentPath, file_name);
-				//MessageBox(0, temporal_path, L"Origin", 0);
-				//MessageBox(0, absPath, L"destination", 0);
 				MoveFile(temporal_path, absPath);
 				activate_copy = false;
 				activate_move = false;
+				reloadListView();
 			}
 			break;
 		case IDM_DELETE:
@@ -473,7 +494,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			break;
 		case IDM_OPEN:
 			{
-				loadOrExecSelected(global_listViewHandle);
+				openSelectedItem(global_listViewHandle);
 			}
 			break;
 		default:
@@ -493,7 +514,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		switch (notifyMess->code)
 		{
 		case NM_DBLCLK:
-			loadOrExecSelected(global_listViewHandle);
+			openSelectedItem(global_listViewHandle);
 			break;
 		case NM_RCLICK:
 			{
@@ -535,6 +556,7 @@ LPWSTR getDate(FILETIME ftLastWrite)
 	return buffer;
 }
 
+
 HIMAGELIST AddIconsToImageList(HINSTANCE hinst)
 {
 	HIMAGELIST himlIcons;  // handle to new image list 
@@ -558,21 +580,21 @@ HIMAGELIST AddIconsToImageList(HINSTANCE hinst)
 
 void loadDirItemToLisview(HWND hWnd, HWND global_listViewHandle, LPCWSTR path)
 {
-	TCHAR buffer[10240];
-	StrCpy(buffer, path);
+	TCHAR path_buffer[10240];
+	StrCpy(path_buffer, path);
 
 	if (wcslen(path) == 3)
-		StrCat(buffer, _T("*"));
+		StrCat(path_buffer, _T("*"));
 	else
-		StrCat(buffer, _T("\\*"));
-	WIN32_FIND_DATA fd;
+		StrCat(path_buffer, _T("\\*"));
+	WIN32_FIND_DATA file_data;
 	HANDLE hFile;
 	BOOL bFound = true;
 	LV_ITEM lv, lv2;
 	TCHAR * folder_path = nullptr;
 	int itemIndexFolder = 0;
 	int fileSizeCount = 0;
-	hFile = FindFirstFileW(buffer, &fd);
+	hFile = FindFirstFileW(path_buffer, &file_data);
 	bFound = TRUE;
 	TCHAR * file_path = nullptr;
 	int itemIndexFile = 0;
@@ -582,28 +604,28 @@ void loadDirItemToLisview(HWND hWnd, HWND global_listViewHandle, LPCWSTR path)
 
 	while (bFound)
 	{
-		if (((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) &&
-			((fd.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) != FILE_ATTRIBUTE_SYSTEM) &&
-			((fd.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != FILE_ATTRIBUTE_HIDDEN))
+		if (((file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) &&
+			((file_data.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) != FILE_ATTRIBUTE_SYSTEM) &&
+			((file_data.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != FILE_ATTRIBUTE_HIDDEN))
 		{
-			file_path = new TCHAR[wcslen(path) + wcslen(fd.cFileName) + 2];
+			file_path = new TCHAR[wcslen(path) + wcslen(file_data.cFileName) + 2];
 			StrCpy(file_path, path);
 
 			if (wcslen(path) != 3)
 				StrCat(file_path, _T("\\"));
 
-			StrCat(file_path, fd.cFileName);
+			StrCat(file_path, file_data.cFileName);
 
 			lv.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
 			lv.iItem = itemIndexFile;
 			lv.iSubItem = 0;
-			lv.pszText = fd.cFileName;
+			lv.pszText = file_data.cFileName;
 			lv.lParam = (LPARAM)file_path;
 			lv.iImage = 0;
 			ListView_InsertItem(global_listViewHandle, &lv);
 
-			DWORD fileSizeLow = fd.nFileSizeLow; //The low-order DWORD value of the file size, in bytes
-			ListView_SetItemText(global_listViewHandle, itemIndexFile, 1, getDate(fd.ftLastWriteTime));
+			DWORD fileSizeLow = file_data.nFileSizeLow; //The low-order DWORD value of the file size, in bytes
+			ListView_SetItemText(global_listViewHandle, itemIndexFile, 1, getDate(file_data.ftLastWriteTime));
 			ListView_SetItemText(global_listViewHandle, itemIndexFile, 2, L"File");
 			ListView_SetItemText(global_listViewHandle, itemIndexFile, 3, (TCHAR*)convertByteToStringSize(fileSizeLow));
 
@@ -612,44 +634,45 @@ void loadDirItemToLisview(HWND hWnd, HWND global_listViewHandle, LPCWSTR path)
 		}
 		else
 		{
-			folder_path = new TCHAR[wcslen(path) + wcslen(fd.cFileName) + 2];
+			folder_path = new TCHAR[wcslen(path) + wcslen(file_data.cFileName) + 2];
 			StrCpy(folder_path, path);
 
 			if (wcslen(path) != 3)
 				StrCat(folder_path, _T("\\"));
 
-			StrCat(folder_path, fd.cFileName);
+			StrCat(folder_path, file_data.cFileName);
 			lv2.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
 			lv2.iItem = itemIndexFolder;
 			lv2.iSubItem = 0;
-			lv2.pszText = fd.cFileName;
+			lv2.pszText = file_data.cFileName;
 			lv2.lParam = (LPARAM)folder_path;
 			lv2.iImage = g_nBird;
 			ListView_InsertItem(global_listViewHandle, &lv2);
 
-			ListView_SetItemText(global_listViewHandle, itemIndexFolder, 2, _T("Folder"));
+			ListView_SetItemText(global_listViewHandle, itemIndexFolder, 2, _T("Folder File"));
 
-			ListView_SetItemText(global_listViewHandle, itemIndexFolder, 1, getDate(fd.ftLastWriteTime));
+			ListView_SetItemText(global_listViewHandle, itemIndexFolder, 1, getDate(file_data.ftLastWriteTime));
 			++itemIndexFolder;
 			global_folderName.push_back(folder_path);
 		}
 
-		bFound = FindNextFileW(hFile, &fd);
+		bFound = FindNextFileW(hFile, &file_data);
 	}
 }
 
-void loadOrExecSelected(HWND global_listViewHandle)
+void openSelectedItem(HWND global_listViewHandle)
 {
 	LPCWSTR filePath = getPathForListView(global_listViewHandle, ListView_GetSelectionMark(global_listViewHandle));
 	currentPath = filePath;
-	WIN32_FIND_DATA fd;
+	WIN32_FIND_DATA file_data;
 
 	//Retrieves attributes for a specified file or directory.
-	if (GetFileAttributesEx(filePath, GetFileExInfoStandard, &fd) != 0)
+	if (GetFileAttributesEx(filePath, GetFileExInfoStandard, &file_data) != 0)
 	{
 		//Check whether it's folder or directory
-		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		if (file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
+			global_currentPath = filePath;
 			//Delete and reload item in Listview
 			ListView_DeleteAllItems(global_listViewHandle);
 			loadDirItemToLisview(global_windowHandle, global_listViewHandle, filePath); 
@@ -806,4 +829,10 @@ void PathtoFile(LPCWSTR path, TCHAR* nf)
 		nf[len2++] = temp[len--];
 	}
 	nf[len2] = L'\0';
+}
+
+void reloadListView() {
+	//Delete and reload item in Listview
+	ListView_DeleteAllItems(global_listViewHandle);
+	loadDirItemToLisview(global_windowHandle, global_listViewHandle, global_currentPath);
 }

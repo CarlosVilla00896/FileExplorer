@@ -36,15 +36,18 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Drive.cpp">
+    <ClCompile Include="FileExplorer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FileExplorer.cpp">
+    <ClCompile Include="SystemDrives.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="folder-red.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="bitmap1.bmp">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

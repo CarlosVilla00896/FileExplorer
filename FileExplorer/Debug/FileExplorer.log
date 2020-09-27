@@ -1,1 +1,4 @@
-﻿  FileExplorer.vcxproj -> C:\Users\carlo\OneDrive\Documents\Unitec\Sistemas Operativos\Proyecto\FileExplorer\Debug\FileExplorer.exe
+﻿  FileExplorer.cpp
+c:\users\carlo\onedrive\documents\unitec\sistemas operativos\proyecto\fileexplorer\fileexplorer\fileexplorer.cpp(285): warning C4129: '*': unrecognized character escape sequence
+c:\users\carlo\onedrive\documents\unitec\sistemas operativos\proyecto\fileexplorer\fileexplorer\fileexplorer.cpp(802): warning C4244: '=': conversion from 'TCHAR' to 'char', possible loss of data
+  FileExplorer.vcxproj -> C:\Users\carlo\OneDrive\Documents\Unitec\Sistemas Operativos\Proyecto\FileExplorer\Debug\FileExplorer.exe

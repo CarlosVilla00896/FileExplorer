@@ -87,7 +87,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FileExplorer.cpp" />
-    <ClCompile Include="Drive.cpp" />
+    <ClCompile Include="SystemDrives.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -97,6 +97,7 @@
     <ResourceCompile Include="FileExplorer.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="bitmap1.bmp" />
     <Image Include="folder-red.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
